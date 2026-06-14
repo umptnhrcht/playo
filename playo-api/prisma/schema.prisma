@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  googleId  String   @unique
+  email     String   @unique
+  name      String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  games       Game[]            @relation("GameHost")
+  memberships GameParticipant[]
+}
+
+model Game {
+  id          String      @id @default(uuid())
+  title       String
+  sport       Sport
+  venue       String
+  scheduledAt DateTime
+  maxSlots    Int
+  hostId      String
+  status      GameStatus  @default(OPEN)
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  host         User              @relation("GameHost", fields: [hostId], references: [id])
+  participants GameParticipant[]
+}
+
+model GameParticipant {
+  id       String              @id @default(uuid())
+  gameId   String
+  userId   String
+  status   ParticipantStatus   @default(CONFIRMED)
+  joinedAt DateTime            @default(now())
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([gameId, userId])
+}
+
+enum Sport {
+  CRICKET
+  FOOTBALL
+  BADMINTON
+  TENNIS
+  BASKETBALL
+  PICKLEBALL
+  OTHER
+}
+
+enum GameStatus {
+  OPEN
+  FULL
+  CANCELLED
+  COMPLETED
+}
+
+enum ParticipantStatus {
+  CONFIRMED
+  WAITLISTED
+  CANCELLED
+}
