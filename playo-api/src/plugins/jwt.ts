@@ -3,6 +3,7 @@ import fastifyJwt from '@fastify/jwt'
 import type { FastifyRequest, FastifyReply } from 'fastify'
 
 export const jwtPlugin = fp(async (app) => {
+    process.loadEnvFile()
     await app.register(fastifyJwt, {
         secret: process.env.JWT_SECRET!,
         sign: { expiresIn: process.env.JWT_EXPIRES_IN ?? '7d' },

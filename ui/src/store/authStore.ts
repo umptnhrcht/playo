@@ -1,26 +1,19 @@
-import * as SecureStore from 'expo-secure-store'
-import { Platform } from 'react-native'
 import { create } from 'zustand'
-import { signInWithGoogle } from '../api/auth'
+import { signInWithGoogle, signInWithGoogleAccessToken } from '../api/auth'
 import type { AuthState } from '../types'
+import { storage } from '../utils/storage'
 
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
 
-// expo-secure-store is native only — fall back to localStorage on web
-const storage = {
-    async get(key: string): Promise<string | null> {
-        if (Platform.OS === 'web') return localStorage.getItem(key)
-        return SecureStore.getItemAsync(key)
-    },
-    async set(key: string, value: string): Promise<void> {
-        if (Platform.OS === 'web') { localStorage.setItem(key, value); return }
-        await SecureStore.setItemAsync(key, value)
-    },
-    async delete(key: string): Promise<void> {
-        if (Platform.OS === 'web') { localStorage.removeItem(key); return }
-        await SecureStore.deleteItemAsync(key)
-    },
+async function persistAndSet(
+    set: (state: Partial<AuthState>) => void,
+    token: string,
+    user: AuthState['user']
+) {
+    await storage.set(TOKEN_KEY, token)
+    await storage.set(USER_KEY, JSON.stringify(user))
+    set({ token, user, isLoading: false })
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -32,9 +25,18 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ isLoading: true })
         try {
             const { token, user } = await signInWithGoogle(idToken)
-            await storage.set(TOKEN_KEY, token)
-            await storage.set(USER_KEY, JSON.stringify(user))
-            set({ token, user, isLoading: false })
+            await persistAndSet(set, token, user)
+        } catch (err) {
+            set({ isLoading: false })
+            throw err
+        }
+    },
+
+    signInWithAccessToken: async (accessToken: string) => {
+        set({ isLoading: true })
+        try {
+            const { token, user } = await signInWithGoogleAccessToken(accessToken)
+            await persistAndSet(set, token, user)
         } catch (err) {
             set({ isLoading: false })
             throw err

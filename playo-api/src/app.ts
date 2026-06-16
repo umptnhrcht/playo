@@ -46,11 +46,11 @@ import { helmetPlugin } from './plugins/helmet.js'
 import { jwtPlugin } from './plugins/jwt.js'
 import { prismaPlugin } from './plugins/prisma.js'
 import { redisPlugin } from './plugins/redis.js'
-import { sensiblePlugin } from './plugins/sensible.js'
 import { authRoutes } from './routes/auth/index.js'
 import { gameRoutes } from './routes/games/index.js'
 import { userRoutes } from './routes/users/index.js'
 import { healthRoutes } from './routes/health.js'
+import sensiblePlugin from './plugins/sensible'
 
 export async function buildApp() {
   const app = Fastify({

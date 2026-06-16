@@ -10,6 +10,7 @@ export interface GoogleUser {
     avatar?: string
 }
 
+// Verify Google ID token (native flow)
 export async function verifyGoogleToken(idToken: string): Promise<GoogleUser | null> {
     try {
         const ticket = await client.verifyIdToken({
@@ -24,6 +25,33 @@ export async function verifyGoogleToken(idToken: string): Promise<GoogleUser | n
             email: payload.email,
             name: payload.name ?? payload.email,
             avatar: payload.picture,
+        }
+    } catch {
+        return null
+    }
+}
+
+// Verify Google access token (web fallback — fetches userinfo)
+export async function verifyGoogleAccessToken(accessToken: string): Promise<GoogleUser | null> {
+    try {
+        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return null
+
+        const data = await res.json() as {
+            sub: string
+            email: string
+            name: string
+            picture?: string
+        }
+        if (!data.sub || !data.email) return null
+
+        return {
+            googleId: data.sub,
+            email: data.email,
+            name: data.name,
+            avatar: data.picture,
         }
     } catch {
         return null
