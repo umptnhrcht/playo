@@ -7,13 +7,15 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  googleId  String   @unique
-  email     String   @unique
-  name      String
-  avatar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(uuid())
+  googleId       String   @unique
+  email          String   @unique
+  name           String
+  avatar         String?
+  favoriteSports Sport[]              // saved sport preferences
+  homeArea       String?              // e.g. "Indiranagar"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   games       Game[]            @relation("GameHost")
   memberships GameParticipant[]
@@ -24,8 +26,15 @@ model Game {
   title       String
   sport       Sport
   venue       String
+  // ── Location fields ──────────────────────────────
+  lat         Float?              // latitude
+  lng         Float?              // longitude
+  placeId     String?             // Google Place ID
+  areaTags    String[]            // ["Indiranagar", "East Bengaluru"]
+  // ── Game config ──────────────────────────────────
   scheduledAt DateTime
   maxSlots    Int
+  skillLevel  SkillLevel  @default(ALL)
   hostId      String
   status      GameStatus  @default(OPEN)
   description String?
@@ -34,14 +43,20 @@ model Game {
 
   host         User              @relation("GameHost", fields: [hostId], references: [id])
   participants GameParticipant[]
+
+  // Index for geo queries and common filters
+  @@index([scheduledAt])
+  @@index([sport])
+  @@index([status])
+  @@index([lat, lng])
 }
 
 model GameParticipant {
-  id       String              @id @default(uuid())
+  id       String            @id @default(uuid())
   gameId   String
   userId   String
-  status   ParticipantStatus   @default(CONFIRMED)
-  joinedAt DateTime            @default(now())
+  status   ParticipantStatus @default(CONFIRMED)
+  joinedAt DateTime          @default(now())
 
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id])
@@ -57,6 +72,13 @@ enum Sport {
   BASKETBALL
   PICKLEBALL
   OTHER
+}
+
+enum SkillLevel {
+  ALL           // open to everyone
+  BEGINNER
+  INTERMEDIATE
+  PRO
 }
 
 enum GameStatus {
