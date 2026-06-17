@@ -51,6 +51,7 @@ import { gameRoutes } from './routes/games/index.js'
 import { userRoutes } from './routes/users/index.js'
 import { healthRoutes } from './routes/health.js'
 import sensiblePlugin from './plugins/sensible'
+import { placesRoutes } from './routes/places'
 
 export async function buildApp() {
   const app = Fastify({
@@ -75,6 +76,7 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: '/auth' })
   await app.register(gameRoutes, { prefix: '/games' })
   await app.register(userRoutes, { prefix: '/users' })
+  await app.register(placesRoutes, { prefix: '/places' })
 
   return app
 }

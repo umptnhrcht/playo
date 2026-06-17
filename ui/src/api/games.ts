@@ -12,7 +12,12 @@ export interface CreateGameInput {
     venue: string
     scheduledAt: string   // ISO string
     maxSlots: number
-    description?: string
+    description?: string,
+    lat?: number
+    lng?: number
+    placeId?: string
+    areaTags: string[]
+    skillLevel: string
 }
 
 export async function fetchGames(filter?: GamesFilter): Promise<{ games: Game[] }> {
