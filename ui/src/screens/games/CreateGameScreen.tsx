@@ -334,7 +334,7 @@ export default function CreateGameScreen() {
                             maxLength={500}
                             textAlignVertical="top"
                         />
-                        <Text style={[s.charCount, { color: colors.textSecondary }]}>{description.length}/500</Text>
+                        <Text style={[s.charCount, { color: colors.textSecondary }]}>{description.length + "/500"}</Text>
                     </Field>
 
                     {/* Submit */}

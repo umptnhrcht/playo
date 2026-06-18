@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { radius, spacing, type ThemeColors } from '../theme';
 import { useTheme } from '../theme/ThemeContext';
 import type { Game, Sport } from '../types';
@@ -23,7 +23,7 @@ function SlotBadge({ game, colors }: { game: Game; colors: ThemeColors }) {
         return <Text style={[s.slotBadge, { backgroundColor: colors.slotFullBg, color: colors.slotFullFg }]}>Full · waitlist</Text>
     }
     if (left <= 2) {
-        return <Text style={[s.slotBadge, { backgroundColor: colors.slotFewBg, color: colors.slotFewFg }]}>{left} slot{left !== 1 ? 's' : ''} left</Text>
+        return <Text style={[s.slotBadge, { backgroundColor: colors.slotFewBg, color: colors.slotFewFg }]}>{left} {left !== 1 ? 'slots' : 'slot'} left</Text>
     }
     return <Text style={[s.slotBadge, { backgroundColor: colors.slotOpenBg, color: colors.slotOpenFg }]}>{left} slots left</Text>
 }
@@ -70,44 +70,51 @@ export function GameCard({ game, onPress, onJoin }: Props) {
     const isFull = game.status === 'FULL'
 
     return (
-        <Pressable
-            style={({ pressed }) => [
-                s.card,
-                { backgroundColor: pressed ? colors.surfaceSecondary : colors.surface, borderColor: colors.border },
-            ]}
-            onPress={() => onPress(game)}
-            accessibilityRole="button"
+        // Use View + TouchableOpacity instead of nested Pressables
+        // TouchableOpacity doesn't render as <button> on web
+        <View
+            style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
-            <View style={s.cardTop}>
-                <View style={[s.sportBadge, { backgroundColor: sport.bg }]}>
-                    <Text style={[s.sportLabel, { color: sport.color }]}>{sport.label}</Text>
+            {/* Tappable area covers everything except the join button */}
+            <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onPress(game)}
+                accessibilityRole="button"
+                accessibilityLabel={`${game.title}, ${sport.label}`}
+            >
+                <View style={s.cardTop}>
+                    <View style={[s.sportBadge, { backgroundColor: sport.bg }]}>
+                        <Text style={[s.sportLabel, { color: sport.color }]}>{sport.label}</Text>
+                    </View>
+                    <SlotBadge game={game} colors={colors} />
                 </View>
-                <SlotBadge game={game} colors={colors} />
-            </View>
 
-            <Text style={[s.title, { color: colors.textPrimary }]} numberOfLines={1}>{game.title}</Text>
+                <Text style={[s.title, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {game.title}
+                </Text>
 
-            <View style={s.meta}>
-                <Text style={[s.metaText, { color: colors.textSecondary }]}>🕐 {formatTime(game.scheduledAt)}</Text>
-                <Text style={[s.metaText, { color: colors.textSecondary }]} numberOfLines={1}>📍 {game.venue}</Text>
-            </View>
+                <View style={s.meta}>
+                    <Text style={[s.metaText, { color: colors.textSecondary }]}>🕐 {formatTime(game.scheduledAt)}</Text>
+                    <Text style={[s.metaText, { color: colors.textSecondary }]} numberOfLines={1}>📍 {game.venue}</Text>
+                </View>
+            </TouchableOpacity>
 
+            {/* Bottom row — outside the TouchableOpacity so Join doesn't trigger card tap */}
             <View style={[s.cardBottom, { borderTopColor: colors.border }]}>
                 <ParticipantAvatars game={game} colors={colors} />
-                <Pressable
-                    style={[
-                        s.joinBtn,
-                        { borderColor: isFull ? colors.border : colors.brand },
-                    ]}
-                    onPress={(e) => { e.stopPropagation?.(); onJoin(game) }}
+                <TouchableOpacity
+                    style={[s.joinBtn, { borderColor: isFull ? colors.border : colors.brand }]}
+                    onPress={() => onJoin(game)}
+                    activeOpacity={0.7}
                     accessibilityRole="button"
+                    accessibilityLabel={isFull ? 'Join waitlist' : 'Join game'}
                 >
                     <Text style={[s.joinBtnText, { color: isFull ? colors.textSecondary : colors.brand }]}>
                         {isFull ? 'Waitlist' : 'Join'}
                     </Text>
-                </Pressable>
+                </TouchableOpacity>
             </View>
-        </Pressable>
+        </View>
     )
 }
 

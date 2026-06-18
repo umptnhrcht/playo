@@ -10,7 +10,7 @@ export interface AuthState {
     token: string | null
     isLoading: boolean
     signIn: (idToken: string) => Promise<void>
-    signInWithAccessToken: (idToken: string) => Promise<void>
+    signInWithAccessToken: (accessToken: string) => Promise<void>
     signOut: () => Promise<void>
     hydrate: () => Promise<void>
 }
@@ -24,8 +24,8 @@ export type Sport =
     | 'PICKLEBALL'
     | 'OTHER'
 
+export type SkillLevel = 'ALL' | 'BEGINNER' | 'INTERMEDIATE' | 'PRO'
 export type GameStatus = 'OPEN' | 'FULL' | 'CANCELLED' | 'COMPLETED'
-
 export type ParticipantStatus = 'CONFIRMED' | 'WAITLISTED' | 'CANCELLED'
 
 export interface GameParticipant {
@@ -40,12 +40,28 @@ export interface Game {
     title: string
     sport: Sport
     venue: string
-    scheduledAt: string   // ISO string
+    lat?: number
+    lng?: number
+    placeId?: string
+    areaTags: string[]
+    scheduledAt: string
     maxSlots: number
+    skillLevel: SkillLevel
     status: GameStatus
     description?: string
     hostId: string
     host: Pick<User, 'id' | 'name' | 'avatar'>
     participants: GameParticipant[]
     _count: { participants: number }
+}
+
+// Home screen filter state
+export interface GamesFilter {
+    sport?: Sport | 'ALL'
+    skillLevel?: SkillLevel | 'ALL'
+    areaTags?: string[]
+    lat?: number
+    lng?: number
+    radius?: number   // km
+    date?: string   // YYYY-MM-DD
 }
