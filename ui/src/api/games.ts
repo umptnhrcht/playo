@@ -34,3 +34,19 @@ export async function createGame(input: CreateGameInput): Promise<{ game: Game }
     const { data } = await apiClient.post<{ game: Game }>('/games', input)
     return data
 }
+
+export interface JoinResult {
+    message: string
+    status: 'CONFIRMED' | 'WAITLISTED'
+    participant: { id: string; status: string; joinedAt: string }
+}
+
+export async function joinGame(gameId: string): Promise<JoinResult> {
+    const { data } = await apiClient.post<JoinResult>(`/games/${gameId}/join`)
+    return data
+}
+
+export async function leaveGame(gameId: string): Promise<{ message: string }> {
+    const { data } = await apiClient.delete<{ message: string }>(`/games/${gameId}/join`)
+    return data
+}

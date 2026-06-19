@@ -1,9 +1,2 @@
-import { Text, View } from 'react-native'
-
-export default function ProfileScreen() {
-    return (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Text>Profile — coming soon</Text>
-        </View>
-    )
-}
+import ProfileScreen from '../../src/screens/profile/ProfileScreen';
+export default ProfileScreen;

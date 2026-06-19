@@ -1,2 +1,2 @@
-import HomeScreen from '../../src/screens/home/HomeScreen';
-export default HomeScreen;
+import MyGamesScreen from '../../src/screens/my-games/MyGamesScreen'
+export default MyGamesScreen
