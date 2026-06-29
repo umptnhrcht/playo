@@ -1,6 +1,5 @@
 import {
     ActivityIndicator,
-    Alert,
     Pressable,
     StyleSheet,
     Text,
@@ -10,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useGoogleAuth } from '../../hooks/useGoogleAuth'
 import { radius, spacing } from '../../theme'
 import { useTheme } from '../../theme/ThemeContext'
+import { AppAlert } from '../../utils/alert'
 
 const SPORTS = [
     { label: 'Football', icon: '⚽' },
@@ -25,7 +25,7 @@ export default function LoginScreen() {
         try {
             await signIn()
         } catch {
-            Alert.alert('Sign-in failed', 'Something went wrong. Please try again.')
+            AppAlert.alert('Sign-in failed', 'Something went wrong. Please try again.')
         }
     }
 

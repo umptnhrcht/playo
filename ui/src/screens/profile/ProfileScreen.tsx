@@ -1,5 +1,4 @@
 import {
-    Alert,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -10,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuthStore } from '../../store/authStore'
 import { radius, spacing } from '../../theme'
 import { useTheme } from '../../theme/ThemeContext'
+import { AppAlert } from '../../utils/alert'
 
 const SPORT_ICONS: Record<string, string> = {
     FOOTBALL: '⚽',
@@ -28,11 +28,12 @@ export default function ProfileScreen() {
     const initials = user?.name
         .split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() ?? '?'
 
-    function handleSignOut() {
-        Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign out', style: 'destructive', onPress: () => signOut() },
-        ])
+    async function handleSignOut() {
+        const confirmed = await AppAlert.confirm('Sign out', 'Are you sure you want to sign out?', {
+            confirmText: 'Sign out',
+            destructive: true,
+        })
+        if (confirmed) signOut()
     }
 
     return (

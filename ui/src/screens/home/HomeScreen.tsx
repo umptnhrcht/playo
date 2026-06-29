@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import {
     ActivityIndicator,
-    Alert,
     FlatList,
     Pressable,
     RefreshControl,
@@ -21,6 +20,7 @@ import { useAuthStore } from '../../store/authStore'
 import { radius, spacing } from '../../theme'
 import { useTheme } from '../../theme/ThemeContext'
 import type { Game, GamesFilter, Sport } from '../../types'
+import { AppAlert } from '../../utils/alert'
 
 function isToday(iso: string) {
     const d = new Date(iso)
@@ -154,7 +154,7 @@ export default function HomeScreen() {
     useEffect(() => { loadGames() }, [loadGames])
 
     useEffect(() => {
-        if (location.error) Alert.alert('Location', location.error)
+        if (location.error) AppAlert.alert('Location', location.error)
     }, [location.error])
 
     async function handleNearMe(): Promise<{ lat: number; lng: number } | null> {

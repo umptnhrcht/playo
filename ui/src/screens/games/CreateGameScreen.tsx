@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import {
     ActivityIndicator,
-    Alert,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -19,6 +18,7 @@ import { VenuePicker } from '../../components/VenuePicker'
 import { radius, spacing } from '../../theme'
 import { useTheme } from '../../theme/ThemeContext'
 import type { Sport } from '../../types'
+import { AppAlert } from '../../utils/alert'
 
 // ── Constants ─────────────────────────────────────────────────
 const SPORTS: { label: string; value: Sport; icon: string }[] = [
@@ -103,7 +103,7 @@ export default function CreateGameScreen() {
     // ── Submit ──────────────────────────────────────────────────
     async function handleSubmit() {
         const error = validate()
-        if (error) { Alert.alert('Validation error', error); return }
+        if (error) { AppAlert.alert('Validation error', error); return }
 
         setIsSubmitting(true)
         try {
@@ -122,13 +122,13 @@ export default function CreateGameScreen() {
                 description: description.trim() || undefined,
             })
 
-            Alert.alert('Game created! 🎉', `"${game.title}" is live.`, [
+            AppAlert.prompt('Game created! 🎉', `"${game.title}" is live.`, [
                 { text: 'View game', onPress: () => router.replace({ pathname: '/game/[id]', params: { id: game.id } }) },
                 { text: 'Go home', onPress: () => router.replace('/(tabs)') },
             ])
         } catch (err: any) {
             const msg = err?.response?.data?.message ?? 'Something went wrong. Please try again.'
-            Alert.alert('Error', msg)
+            AppAlert.alert('Error', msg)
         } finally {
             setIsSubmitting(false)
         }

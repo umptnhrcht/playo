@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import {
     ActivityIndicator,
-    Alert,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -16,6 +15,7 @@ import { useAuthStore } from '../../store/authStore'
 import { radius, spacing } from '../../theme'
 import { useTheme } from '../../theme/ThemeContext'
 import type { Game } from '../../types'
+import { AppAlert } from '../../utils/alert'
 
 const SPORT_ICON: Record<string, string> = {
     FOOTBALL: '⚽',
@@ -68,17 +68,55 @@ function ParticipantRow({ name, status, index, isHost, colors }: {
 }
 
 // ── Join button ───────────────────────────────────────────────
-function JoinButton({ game, userId, userName, onUpdate, colors }: {
-    game: Game; userId: string | undefined; userName: string | undefined; onUpdate: (u: Partial<Game>) => void; colors: any
+function JoinButton({ game, userId, userName, onUpdate, onCancelled, colors }: {
+    game: Game; userId: string | undefined; userName: string | undefined
+    onUpdate: (u: Partial<Game>) => void; onCancelled: () => void; colors: any
 }) {
     const { isJoining, isLeaving, joinStatus, handleJoin, handleLeave } = useJoinGame(game, userId, userName, onUpdate)
+    const [isCancelling, setIsCancelling] = useState(false)
 
     const isHost = game.hostId === userId
 
+    async function handleCancel() {
+        const confirmed = await AppAlert.confirm(
+            'Cancel game',
+            'This will cancel the game for all players. This cannot be undone.',
+            { confirmText: 'Cancel game', cancelText: 'Keep game', destructive: true }
+        )
+
+        if (!confirmed) return
+
+        setIsCancelling(true)
+        try {
+            await apiClient.delete(`/games/${game.id}`)
+            onCancelled()
+        } catch (err: any) {
+            AppAlert.alert('Error', err?.response?.data?.message ?? 'Could not cancel. Please try again.')
+        } finally {
+            setIsCancelling(false)
+        }
+    }
+
     if (isHost) {
         return (
-            <View style={[s.hostBadge, { backgroundColor: colors.brandLight }]}>
-                <Text style={[s.hostBadgeText, { color: colors.brand }]}>You are hosting this game</Text>
+            <View style={s.hostFooter}>
+                <View style={[s.hostBadge, { backgroundColor: colors.brandLight }]}>
+                    <Text style={[s.hostBadgeText, { color: colors.brand }]}>You are hosting this game</Text>
+                </View>
+                {game.status !== 'CANCELLED' && game.status !== 'COMPLETED' && (
+                    <Pressable
+                        style={[s.cancelBtn, { borderColor: colors.danger }]}
+                        onPress={handleCancel}
+                        disabled={isCancelling}
+                        accessibilityRole="button"
+                        accessibilityLabel="Cancel game"
+                    >
+                        {isCancelling
+                            ? <ActivityIndicator color={colors.danger} size="small" />
+                            : <Text style={[s.cancelBtnText, { color: colors.danger }]}>Cancel game</Text>
+                        }
+                    </Pressable>
+                )}
             </View>
         )
     }
@@ -96,10 +134,9 @@ function JoinButton({ game, userId, userName, onUpdate, colors }: {
             <Pressable
                 style={[s.leaveBtn, { borderColor: colors.danger }]}
                 onPress={() => {
-                    Alert.alert('Leave game', 'Are you sure you want to leave?', [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Leave', style: 'destructive', onPress: handleLeave },
-                    ])
+                    AppAlert.confirm('Leave game', 'Are you sure you want to leave?', {
+                        confirmText: 'Leave', destructive: true,
+                    }).then((ok) => { if (ok) handleLeave() })
                 }}
                 disabled={isLeaving}
             >
@@ -116,10 +153,9 @@ function JoinButton({ game, userId, userName, onUpdate, colors }: {
             <Pressable
                 style={[s.leaveBtn, { borderColor: colors.textSecondary }]}
                 onPress={() => {
-                    Alert.alert('Leave waitlist', 'Remove yourself from the waitlist?', [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Remove', style: 'destructive', onPress: handleLeave },
-                    ])
+                    AppAlert.confirm('Leave waitlist', 'Remove yourself from the waitlist?', {
+                        confirmText: 'Remove', destructive: true,
+                    }).then((ok) => { if (ok) handleLeave() })
                 }}
                 disabled={isLeaving}
             >
@@ -143,7 +179,7 @@ function JoinButton({ game, userId, userName, onUpdate, colors }: {
                     await handleJoin()
                 } catch (err: any) {
                     const msg = err?.response?.data?.message ?? 'Could not join. Please try again.'
-                    Alert.alert('Error', msg)
+                    AppAlert.alert('Error', msg)
                 }
             }}
             disabled={isJoining}
@@ -350,6 +386,9 @@ export default function GameDetailScreen() {
                     userId={user?.id}
                     userName={user?.name}
                     onUpdate={handleGameUpdate}
+                    onCancelled={() => {
+                        AppAlert.alert('Game cancelled', 'The game has been cancelled.', () => router.replace('/(tabs)'))
+                    }}
                     colors={colors}
                 />
             </View>
@@ -419,8 +458,11 @@ const s = StyleSheet.create({
     joinBtnText: { fontSize: 15, fontWeight: '500' },
     leaveBtn: { borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', borderWidth: 0.5 },
     leaveBtnText: { fontSize: 15, fontWeight: '500' },
+    hostFooter: { gap: spacing.sm },
     hostBadge: { borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center' },
     hostBadgeText: { fontSize: 14, fontWeight: '500' },
+    cancelBtn: { borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 0.5 },
+    cancelBtnText: { fontSize: 15, fontWeight: '500' },
 
     // Error / loading
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
