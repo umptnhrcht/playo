@@ -7,10 +7,10 @@ export interface JwtPayload {
     name: string
 }
 
-// Extend Fastify request with typed user
-declare module 'fastify' {
-    interface FastifyRequest {
-        user: JwtPayload
+declare module '@fastify/jwt' {
+    interface FastifyJWT {
+        payload: JwtPayload; // This types the token payload itself
+        user: JwtPayload;    // This types request.user
     }
 }
 

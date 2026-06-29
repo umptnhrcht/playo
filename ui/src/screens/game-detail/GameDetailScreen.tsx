@@ -68,10 +68,10 @@ function ParticipantRow({ name, status, index, isHost, colors }: {
 }
 
 // ── Join button ───────────────────────────────────────────────
-function JoinButton({ game, userId, onUpdate, colors }: {
-    game: Game; userId: string | undefined; onUpdate: (u: Partial<Game>) => void; colors: any
+function JoinButton({ game, userId, userName, onUpdate, colors }: {
+    game: Game; userId: string | undefined; userName: string | undefined; onUpdate: (u: Partial<Game>) => void; colors: any
 }) {
-    const { isJoining, isLeaving, joinStatus, handleJoin, handleLeave } = useJoinGame(game, userId, onUpdate)
+    const { isJoining, isLeaving, joinStatus, handleJoin, handleLeave } = useJoinGame(game, userId, userName, onUpdate)
 
     const isHost = game.hostId === userId
 
@@ -179,7 +179,12 @@ export default function GameDetailScreen() {
     }, [id])
 
     function handleGameUpdate(update: Partial<Game>) {
-        setGame((prev) => prev ? { ...prev, ...update } : prev)
+        setGame((prev) => {
+            if (!prev) return prev
+            // If full game object returned from refetch, replace entirely
+            if ((update as Game).id) return update as Game
+            return { ...prev, ...update }
+        })
     }
 
     if (isLoading) {
@@ -343,6 +348,7 @@ export default function GameDetailScreen() {
                 <JoinButton
                     game={game}
                     userId={user?.id}
+                    userName={user?.name}
                     onUpdate={handleGameUpdate}
                     colors={colors}
                 />

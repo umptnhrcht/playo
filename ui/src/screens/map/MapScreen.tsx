@@ -86,7 +86,7 @@ function WebFallback({ games, colors, onGamePress }: {
                                     {g.title}
                                 </Text>
                                 <Text style={[s.webListMeta, { color: colors.textSecondary }]} numberOfLines={1}>
-                                    📍 {g.venue}
+                                    {"📍 " + g.venue}
                                 </Text>
                             </View>
                             <Text style={[s.webListArrow, { color: colors.textSecondary }]}>›</Text>
@@ -143,8 +143,8 @@ function BottomCard({ game, onPress, onClose, colors }: {
                 </Pressable>
             </View>
             <Text style={[s.cardTitle, { color: colors.textPrimary }]} numberOfLines={2}>{game.title}</Text>
-            <Text style={[s.cardMeta, { color: colors.textSecondary }]}>🕐 {time}</Text>
-            <Text style={[s.cardMeta, { color: colors.textSecondary }]} numberOfLines={1}>📍 {game.venue}</Text>
+            <Text style={[s.cardMeta, { color: colors.textSecondary }]}>{"🕐 " + time}</Text>
+            <Text style={[s.cardMeta, { color: colors.textSecondary }]} numberOfLines={1}>{"📍 " + game.venue}</Text>
             <View style={s.cardFooter}>
                 <Text style={[s.slotsText, { color: isFull ? '#791F1F' : left <= 2 ? '#633806' : '#27500A' }]}>
                     {isFull ? 'Full · waitlist' : left + ' slot' + (left !== 1 ? 's' : '') + ' left'}

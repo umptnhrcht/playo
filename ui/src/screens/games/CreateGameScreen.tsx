@@ -207,15 +207,11 @@ export default function CreateGameScreen() {
                         />
                         {placeDetail && (
                             <View style={[s.placeConfirmed, { backgroundColor: colors.brandLight }]}>
-                                <Text style={[s.placeConfirmedText, { color: colors.brand }]}>
-                                    📍 {placeDetail.address}
-                                </Text>
+                                <Text style={[s.placeConfirmedText, { color: colors.brand }]}>{"📍 " + placeDetail.address}</Text>
                             </View>
                         )}
                         {venue && !placeDetail && (
-                            <Text style={[s.placeHint, { color: colors.textSecondary }]}>
-                                ⚠️ Select from suggestions to enable radius search
-                            </Text>
+                            <Text style={[s.placeHint, { color: colors.textSecondary }]}>{"⚠️ Select from suggestions to enable radius search"}</Text>
                         )}
                     </Field>
 

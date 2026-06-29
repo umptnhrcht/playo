@@ -94,8 +94,8 @@ export function GameCard({ game, onPress, onJoin }: Props) {
                 </Text>
 
                 <View style={s.meta}>
-                    <Text style={[s.metaText, { color: colors.textSecondary }]}>🕐 {formatTime(game.scheduledAt)}</Text>
-                    <Text style={[s.metaText, { color: colors.textSecondary }]} numberOfLines={1}>📍 {game.venue}</Text>
+                    <Text style={[s.metaText, { color: colors.textSecondary }]}>{"🕐 " + formatTime(game.scheduledAt)}</Text>
+                    <Text style={[s.metaText, { color: colors.textSecondary }]} numberOfLines={1}>{"📍 " + game.venue}</Text>
                 </View>
             </TouchableOpacity>
 

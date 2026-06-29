@@ -172,3 +172,132 @@ export async function getGame(prisma: PrismaClient, id: string) {
         select: gameSelect,
     })
 }
+
+// ── Join game ─────────────────────────────────────────────────
+export type JoinResult =
+    | { status: 'CONFIRMED'; participant: any }
+    | { status: 'WAITLISTED'; participant: any }
+    | { status: 'ALREADY_JOINED' }
+    | { status: 'HOST_CANNOT_JOIN' }
+    | { status: 'GAME_UNAVAILABLE' }
+
+export async function joinGame(
+    prisma: PrismaClient,
+    gameId: string,
+    userId: string
+): Promise<JoinResult> {
+    // Fetch game with confirmed participant count
+    const game = await prisma.game.findUnique({
+        where: { id: gameId },
+        select: {
+            id: true,
+            hostId: true,
+            status: true,
+            maxSlots: true,
+            _count: { select: { participants: { where: { status: 'CONFIRMED' } } } },
+        },
+    })
+
+    if (!game || game.status === 'CANCELLED' || game.status === 'COMPLETED') {
+        return { status: 'GAME_UNAVAILABLE' }
+    }
+
+    if (game.hostId === userId) {
+        return { status: 'HOST_CANNOT_JOIN' }
+    }
+
+    // Check if already joined
+    const existing = await prisma.gameParticipant.findUnique({
+        where: { gameId_userId: { gameId, userId } },
+    })
+
+    if (existing && existing.status !== 'CANCELLED') {
+        return { status: 'ALREADY_JOINED' }
+    }
+
+    const confirmedCount = game._count.participants
+    const isFull = confirmedCount >= game.maxSlots
+    const joinStatus = isFull ? 'WAITLISTED' : 'CONFIRMED'
+
+    // Upsert — handles re-joining after cancellation
+    const participant = await prisma.gameParticipant.upsert({
+        where: { gameId_userId: { gameId, userId } },
+        update: { status: joinStatus, joinedAt: new Date() },
+        create: { gameId, userId, status: joinStatus },
+        select: { id: true, status: true, joinedAt: true },
+    })
+
+    // If now full, update game status
+    if (!isFull && confirmedCount + 1 >= game.maxSlots) {
+        await prisma.game.update({
+            where: { id: gameId },
+            data: { status: 'FULL' },
+        })
+    }
+
+    return { status: joinStatus, participant }
+}
+
+// ── Leave game ────────────────────────────────────────────────
+export type LeaveResult =
+    | { status: 'LEFT'; promoted?: any }
+    | { status: 'NOT_JOINED' }
+    | { status: 'HOST_CANNOT_LEAVE' }
+
+export async function leaveGame(
+    prisma: PrismaClient,
+    gameId: string,
+    userId: string
+): Promise<LeaveResult> {
+    const game = await prisma.game.findUnique({
+        where: { id: gameId },
+        select: { hostId: true, status: true },
+    })
+
+    if (!game) return { status: 'NOT_JOINED' }
+    if (game.hostId === userId) return { status: 'HOST_CANNOT_LEAVE' }
+
+    const participant = await prisma.gameParticipant.findUnique({
+        where: { gameId_userId: { gameId, userId } },
+    })
+
+    if (!participant || participant.status === 'CANCELLED') {
+        return { status: 'NOT_JOINED' }
+    }
+
+    const wasConfirmed = participant.status === 'CONFIRMED'
+
+    // Cancel the participant
+    await prisma.gameParticipant.update({
+        where: { gameId_userId: { gameId, userId } },
+        data: { status: 'CANCELLED' },
+    })
+
+    let promoted: any = null
+
+    // If they were confirmed, promote first waitlisted player
+    if (wasConfirmed) {
+        const nextWaitlisted = await prisma.gameParticipant.findFirst({
+            where: { gameId, status: 'WAITLISTED' },
+            orderBy: { joinedAt: 'asc' },
+        })
+
+        if (nextWaitlisted) {
+            promoted = await prisma.gameParticipant.update({
+                where: { id: nextWaitlisted.id },
+                data: { status: 'CONFIRMED' },
+                select: { id: true, userId: true, status: true },
+            })
+        }
+
+        // Re-open game if it was full
+        if (game.status === 'FULL' && !promoted) {
+            await prisma.game.update({
+                where: { id: gameId },
+                data: { status: 'OPEN' },
+            })
+        }
+    }
+
+    return { status: 'LEFT', promoted }
+}

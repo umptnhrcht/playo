@@ -1,8 +1,13 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { createGame, listGames, getGame } from '../../services/game.service.js'
+import {
+    createGame,
+    listGames,
+    getGame,
+    joinGame,
+    leaveGame,
+} from '../../services/game.service'
 
-// ── Validation schemas ────────────────────────────────────────
 const SportEnum = z.enum(['CRICKET', 'FOOTBALL', 'BADMINTON', 'TENNIS', 'BASKETBALL', 'PICKLEBALL', 'OTHER'])
 const SkillLevelEnum = z.enum(['ALL', 'BEGINNER', 'INTERMEDIATE', 'PRO'])
 
@@ -24,10 +29,10 @@ const ListGamesQuery = z.object({
     sport: SportEnum.optional(),
     date: z.string().optional(),
     skillLevel: SkillLevelEnum.optional(),
-    areaTags: z.string().optional(),   // comma-separated e.g. "Indiranagar,Koramangala"
+    areaTags: z.string().optional(),
     lat: z.coerce.number().optional(),
     lng: z.coerce.number().optional(),
-    radius: z.coerce.number().min(1).max(50).optional(),  // km
+    radius: z.coerce.number().min(1).max(50).optional(),
 })
 
 export async function gameRoutes(app: FastifyInstance) {
@@ -39,17 +44,11 @@ export async function gameRoutes(app: FastifyInstance) {
         if (!query.success) return reply.badRequest(query.error.issues[0]?.message)
 
         const { sport, date, skillLevel, areaTags, lat, lng, radius } = query.data
-
         const games = await listGames(app.prisma, {
-            sport,
-            date,
-            skillLevel,
+            sport, date, skillLevel,
             areaTags: areaTags ? areaTags.split(',').map((t) => t.trim()) : undefined,
-            lat,
-            lng,
-            radiusKm: radius,
+            lat, lng, radiusKm: radius,
         })
-
         return reply.send({ games })
     })
 
@@ -57,16 +56,9 @@ export async function gameRoutes(app: FastifyInstance) {
     app.post('/', async (req, reply) => {
         const body = CreateGameBody.safeParse(req.body)
         if (!body.success) return reply.badRequest(body.error.issues[0]?.message)
-
         if (new Date(body.data.scheduledAt) <= new Date()) {
             return reply.badRequest('scheduledAt must be in the future')
         }
-
-        // Warn if venue provided but no coordinates
-        if (body.data.venue && !body.data.lat) {
-            app.log.warn('Game created without coordinates — radius search will not include this game')
-        }
-
         const game = await createGame(app.prisma, req.user.sub, body.data)
         return reply.code(201).send({ game })
     })
@@ -85,12 +77,52 @@ export async function gameRoutes(app: FastifyInstance) {
         const game = await getGame(app.prisma, id)
         if (!game) return reply.notFound('Game not found')
         if (game.hostId !== req.user.sub) return reply.forbidden('Only the host can cancel this game')
-
-        await app.prisma.game.update({
-            where: { id },
-            data: { status: 'CANCELLED' },
-        })
-
+        await app.prisma.game.update({ where: { id }, data: { status: 'CANCELLED' } })
         return reply.send({ message: 'Game cancelled' })
+    })
+
+    // ── POST /games/:id/join ──────────────────────────────────
+    app.post('/:id/join', async (req, reply) => {
+        const { id } = req.params as { id: string }
+        const result = await joinGame(app.prisma, id, req.user.sub)
+
+        switch (result.status) {
+            case 'CONFIRMED':
+                return reply.code(201).send({
+                    message: 'You have joined the game!',
+                    status: 'CONFIRMED',
+                    participant: result.participant,
+                })
+            case 'WAITLISTED':
+                return reply.code(201).send({
+                    message: 'Game is full — you are on the waitlist.',
+                    status: 'WAITLISTED',
+                    participant: result.participant,
+                })
+            case 'ALREADY_JOINED':
+                return reply.conflict('You have already joined this game')
+            case 'HOST_CANNOT_JOIN':
+                return reply.badRequest('You are the host of this game')
+            case 'GAME_UNAVAILABLE':
+                return reply.badRequest('This game is no longer available')
+        }
+    })
+
+    // ── DELETE /games/:id/join ────────────────────────────────
+    app.delete('/:id/join', async (req, reply) => {
+        const { id } = req.params as { id: string }
+        const result = await leaveGame(app.prisma, id, req.user.sub)
+
+        switch (result.status) {
+            case 'LEFT':
+                return reply.send({
+                    message: 'You have left the game',
+                    promoted: result.promoted ?? null,
+                })
+            case 'NOT_JOINED':
+                return reply.badRequest('You are not in this game')
+            case 'HOST_CANNOT_LEAVE':
+                return reply.badRequest('Host cannot leave — cancel the game instead')
+        }
     })
 }
