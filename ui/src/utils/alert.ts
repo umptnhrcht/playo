@@ -1,33 +1,59 @@
 import { Alert, Platform } from 'react-native'
+import type { DialogButton } from '../components/Dialog'
 
-export interface AlertButton {
-    text: string
-    style?: 'default' | 'cancel' | 'destructive'
-    onPress?: () => void
+// ── Internal dialog state ─────────────────────────────────────
+// Stored in a simple pub/sub so AppAlert can trigger the
+// DialogHost (rendered in _layout.tsx) without prop drilling.
+
+type DialogState = {
+    visible: boolean
+    title: string
+    message?: string
+    buttons: DialogButton[]
 }
 
-/**
- * Platform-agnostic alert.
- * - Web:    uses window.alert / window.confirm
- * - Native: uses React Native Alert.alert
- */
+type Listener = (state: DialogState) => void
+
+let _listener: Listener | null = null
+let _state: DialogState = { visible: false, title: '', buttons: [] }
+
+function publish(state: DialogState) {
+    _state = state
+    _listener?.(state)
+}
+
+/** Register the DialogHost listener — called once in _layout.tsx */
+export function registerDialogListener(fn: Listener) {
+    _listener = fn
+    // Replay current state in case dialog was triggered before host mounted
+    fn(_state)
+}
+
+function showDialog(title: string, message?: string, buttons: DialogButton[] = []) {
+    publish({ visible: true, title, message, buttons })
+}
+
+function dismiss() {
+    publish({ visible: false, title: '', buttons: [] })
+}
+
+// ── Public API ────────────────────────────────────────────────
 export const AppAlert = {
     /**
-     * Show a simple message alert.
+     * Simple message alert.
      */
     alert(title: string, message?: string, onDismiss?: () => void) {
         if (Platform.OS === 'web') {
-            window.alert(message ? `${title}\n\n${message}` : title)
-            onDismiss?.()
+            showDialog(title, message, [
+                { text: 'OK', style: 'default', onPress: onDismiss },
+            ])
         } else {
             Alert.alert(title, message, [{ text: 'OK', onPress: onDismiss }])
         }
     },
 
     /**
-     * Show a confirm dialog. Returns a Promise<boolean>.
-     * - Web:    window.confirm → resolves immediately
-     * - Native: Alert with Cancel/Confirm buttons → resolves on tap
+     * Confirm dialog — returns Promise<boolean>.
      */
     confirm(
         title: string,
@@ -42,49 +68,45 @@ export const AppAlert = {
         const cancelText = options?.cancelText ?? 'Cancel'
 
         if (Platform.OS === 'web') {
-            const result = window.confirm(message ? `${title}\n\n${message}` : title)
-            return Promise.resolve(result)
+            return new Promise((resolve) => {
+                showDialog(title, message, [
+                    { text: cancelText, style: 'cancel', onPress: () => resolve(false) },
+                    { text: confirmText, style: options?.destructive ? 'destructive' : 'default', onPress: () => resolve(true) },
+                ])
+            })
         }
 
         return new Promise((resolve) => {
             Alert.alert(title, message, [
-                {
-                    text: cancelText,
-                    style: 'cancel',
-                    onPress: () => resolve(false),
-                },
-                {
-                    text: confirmText,
-                    style: options?.destructive ? 'destructive' : 'default',
-                    onPress: () => resolve(true),
-                },
+                { text: cancelText, style: 'cancel', onPress: () => resolve(false) },
+                { text: confirmText, style: options?.destructive ? 'destructive' : 'default', onPress: () => resolve(true) },
             ])
         })
     },
 
     /**
-     * Show an action sheet style prompt with multiple options.
-     * - Web:    falls back to window.confirm for destructive actions
-     * - Native: Alert with multiple buttons
+     * Multi-button prompt.
      */
-    prompt(title: string, message?: string, buttons: AlertButton[] = []) {
+    prompt(title: string, message?: string, buttons: DialogButton[] = []) {
         if (Platform.OS === 'web') {
-            // On web, simulate with sequential confirms for destructive buttons
-            const destructive = buttons.find((b) => b.style === 'destructive')
-            const cancel = buttons.find((b) => b.style === 'cancel')
-
-            if (destructive) {
-                const confirmed = window.confirm(
-                    message ? `${title}\n\n${message}` : title
-                )
-                if (confirmed) destructive.onPress?.()
-                else cancel?.onPress?.()
-            } else {
-                window.alert(message ? `${title}\n\n${message}` : title)
-                buttons.find((b) => b.style !== 'cancel')?.onPress?.()
-            }
+            showDialog(title, message, buttons)
         } else {
             Alert.alert(title, message, buttons)
         }
     },
+}
+
+// ── DialogHost state hook ─────────────────────────────────────
+// Used by DialogHost in _layout.tsx
+import { useEffect, useState } from 'react'
+
+export function useDialogState() {
+    const [state, setState] = useState<DialogState>(_state)
+
+    useEffect(() => {
+        registerDialogListener(setState)
+        return () => { _listener = null }
+    }, [])
+
+    return { ...state, dismiss }
 }
